@@ -1,0 +1,91 @@
+name: credjack
+
+x-app: &app
+  build:
+    context: .
+  image: credjack:dev
+
+x-health: &health
+  interval: 3s
+  timeout: 3s
+  retries: 20
+  start_period: 2s
+
+networks:
+  # Link-local segment carrying the fake instance metadata service at 169.254.169.254.
+  linklocal:
+    internal: true
+    ipam:
+      config:
+        - subnet: 169.254.169.0/24
+  # Private-range segment carrying the fake Nimbus control plane.
+  internal_net:
+    internal: true
+    ipam:
+      config:
+        - subnet: 10.13.37.0/24
+  # Documentation-range segment (outside every blocked range) carrying the benign upstream.
+  edge:
+    internal: true
+    ipam:
+      config:
+        - subnet: 192.0.2.0/24
+
+services:
+  # Fake instance metadata service, bound to the link-local address. The attacker-controlled
+  # name cdn-edge.partner.test resolves to this same address via the network alias.
+  metadata:
+    <<: *app
+    command: ["uvicorn", "credjack.fixtures.metadata:app", "--host", "0.0.0.0", "--port", "80"]
+    networks:
+      linklocal:
+        ipv4_address: 169.254.169.254
+        aliases:
+          - metadata
+          - cdn-edge.partner.test
+    healthcheck:
+      <<: *health
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost/healthz', timeout=2).status == 200 else 1)"]
+
+  # Fake Nimbus cloud control plane on a private-range address.
+  control-plane:
+    <<: *app
+    command: ["uvicorn", "credjack.fixtures.control_plane:app", "--host", "0.0.0.0", "--port", "80"]
+    networks:
+      internal_net:
+        ipv4_address: 10.13.37.10
+        aliases:
+          - control.nimbus.internal
+    healthcheck:
+      <<: *health
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost/healthz', timeout=2).status == 200 else 1)"]
+
+  # Benign upstream fixture on a documentation-range address (the one legitimate target).
+  benign:
+    <<: *app
+    command: ["uvicorn", "credjack.fixtures.benign:app", "--host", "0.0.0.0", "--port", "80"]
+    networks:
+      edge:
+        ipv4_address: 192.0.2.10
+        aliases:
+          - status.partner.test
+    healthcheck:
+      <<: *health
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost/healthz', timeout=2).status == 200 else 1)"]
+
+  # Verification boundary: runs the full ruff + mypy + pytest gate inside the container
+  # network, reaching every fixture. No published ports.
+  verify:
+    <<: *app
+    command: ["sh", "scripts/gate.sh"]
+    depends_on:
+      metadata:
+        condition: service_healthy
+      control-plane:
+        condition: service_healthy
+      benign:
+        condition: service_healthy
+    networks:
+      - linklocal
+      - internal_net
+      - edge
