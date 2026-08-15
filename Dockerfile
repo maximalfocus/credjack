@@ -15,6 +15,7 @@ COPY src ./src
 COPY tests ./tests
 COPY scripts ./scripts
 COPY docs ./docs
+COPY LICENSE SECURITY.md CONTRIBUTING.md ./
 RUN uv sync --frozen
 
 # Overridden per service in docker-compose.yml.
