@@ -148,6 +148,24 @@ services:
       <<: *health
       test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8002/healthz', timeout=2).status == 200 else 1)"]
 
+  # One-shot scripted comparison across all three live applications (FR-012/FR-013). Opt-in
+  # (needs the non-secure apps), reports the result, and exits non-zero if the matrix breaks.
+  demo:
+    <<: *app
+    profiles: ["vulnerable"]
+    command: ["python", "-m", "credjack.cli"]
+    depends_on:
+      secure:
+        condition: service_healthy
+      vulnerable:
+        condition: service_healthy
+      naive:
+        condition: service_healthy
+    networks:
+      - linklocal
+      - internal_net
+      - edge
+
   # Verification boundary: runs the full ruff + mypy + pytest gate inside the container
   # network, reaching every fixture and the secure application. No published ports.
   verify:
