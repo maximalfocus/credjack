@@ -14,6 +14,7 @@ RUN uv sync --frozen --no-install-project
 COPY src ./src
 COPY tests ./tests
 COPY scripts ./scripts
+COPY docs ./docs
 RUN uv sync --frozen
 
 # Overridden per service in docker-compose.yml.
