@@ -184,3 +184,42 @@ def vulnerable_guard(url: str) -> str:
 
 def vulnerable_fetch(url: str) -> FetchOutcome:
     return fetch(url, guard=vulnerable_guard)
+
+
+# The naive denylist checks the submitted name/text, never the resolved address. It blocks the
+# obvious literals and known metadata names, but not an innocuous-looking name that resolves to
+# the metadata address (the whole point of the bypass).
+NAIVE_DENYLIST_HOSTS = frozenset(
+    {
+        "169.254.169.254",
+        "localhost",
+        "metadata",
+        "metadata.google.internal",
+        "metadata.goog",
+    }
+)
+NAIVE_DENYLIST_MARKERS = ("169.254.169.254",)
+
+
+def naive_guard(url: str) -> str:
+    """Hostname/string denylist on the submitted URL, then connect without address checks."""
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    if not host:
+        raise RejectError("scheme")
+    lowered = url.lower()
+    if host in NAIVE_DENYLIST_HOSTS or any(marker in lowered for marker in NAIVE_DENYLIST_MARKERS):
+        raise RejectError("denylist")
+    # Passed the text check: resolve and connect to whatever it resolves to, WITHOUT inspecting
+    # the resolved address — so a name that resolves to the metadata address is fetched anyway.
+    try:
+        ips = _resolve(host)
+    except socket.gaierror as exc:
+        raise RejectError("blocked_address") from exc
+    if not ips:
+        raise RejectError("blocked_address")
+    return ips[0]
+
+
+def naive_fetch(url: str) -> FetchOutcome:
+    return fetch(url, guard=naive_guard)
