@@ -1,13 +1,15 @@
 # credjack
 
-> **Private, in-development repository.** A container-only educational demo of **Server-Side
-> Request Forgery to a cloud instance's metadata service** (OWASP **A10:2021** /
-> **API7:2023** / **CWE-918**), carried through to a demonstrated **credential replay** that
-> proves instance-role takeover — and the app-side control that stops it. Everything is fully
-> simulated and runs **only inside the demo's own container network**; no real host, cloud
-> provider, or metadata service is ever contacted.
+A small, local, container-only educational demo of **Server-Side Request Forgery to a cloud
+instance's metadata service** (OWASP **A10:2021** / **API7:2023** / **CWE-918**), carried through
+to a demonstrated **credential replay** that proves instance-role takeover — and the app-side
+control that stops it.
 
-**Status:** private development. **No license is granted during private development.**
+Everything in it is **wholly fictional** — the hosts, the addresses, the instance credentials, and
+the "private bucket". It runs **entirely on your machine**, contacts nothing on the public
+internet, and ships the flaw and its fix **side by side** so you can watch exactly where they
+diverge. It is educational material only: there is **no hosted service and no production-safety
+claim**.
 
 ## What it shows
 
@@ -27,10 +29,12 @@ The lesson: a hostname/string denylist checks the *name*, not the *resolved addr
 **resolved-address blocking** (on every hop, connecting only to the validated address) closes
 the gap.
 
-## Run it (Docker Compose only)
+## Requirements
 
-The host needs only Docker + Docker Compose. Python, dependencies, tests, Ruff, and mypy all run
-inside containers.
+Docker with Compose. Nothing else — no Python, no project install on the host. Python,
+dependencies, tests, Ruff, and mypy all run inside containers.
+
+## Run it (Docker Compose only)
 
 ```
 bash scripts/demo.sh            # one-shot scripted comparison across all three apps + replay
@@ -58,3 +62,15 @@ Compose profile plus `ALLOW_VULNERABLE_DEMO=true`); the secure application is th
 default Compose path never starts them. All published ports are loopback-only, the fixture
 networks are `internal` (no public-internet access on any path), and every fixture is wholly
 fictional.
+
+See [`SECURITY.md`](SECURITY.md) for what is intentionally vulnerable here versus how to report an
+*unintended* problem privately.
+
+## Contributing
+
+Contributions that improve the demonstration are welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md).
+The intentional vulnerabilities stay; everything remains fictional, local, and Compose-only.
+
+## License
+
+Released under the [MIT License](LICENSE).
