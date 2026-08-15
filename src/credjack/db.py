@@ -11,7 +11,10 @@ from credjack.models import Base, User
 
 
 def make_engine(url: str = "sqlite+pysqlite:///:memory:") -> Engine:
-    engine = create_engine(url, future=True)
+    # Sync FastAPI endpoints run in a threadpool, so a file-backed SQLite connection may be
+    # used across threads; disable SQLite's same-thread guard for that case.
+    connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
+    engine = create_engine(url, future=True, connect_args=connect_args)
     Base.metadata.create_all(engine)
     return engine
 
