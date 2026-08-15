@@ -27,11 +27,17 @@ grep -qx "vulnerable" <<<"$(docker compose --profile vulnerable config --service
   echo "GATING FAILURE: 'vulnerable' is not available under the vulnerable profile" >&2
   exit 1
 }
-# The vulnerable application is published on 8001, bound to loopback.
-grep -B3 'published: "8001"' <<<"$profile_config" | grep -q 'host_ip: 127.0.0.1' || {
-  echo "GATING FAILURE: the vulnerable application is not published loopback-only on 8001" >&2
+# Each non-secure application is published on its port, bound to loopback.
+grep -qx "naive" <<<"$(docker compose --profile vulnerable config --services)" || {
+  echo "GATING FAILURE: 'naive' is not available under the vulnerable profile" >&2
   exit 1
 }
+for port in 8001 8002; do
+  grep -B3 "published: \"$port\"" <<<"$profile_config" | grep -q 'host_ip: 127.0.0.1' || {
+    echo "GATING FAILURE: a non-secure application is not published loopback-only on $port" >&2
+    exit 1
+  }
+done
 # No published port anywhere may bind a non-loopback interface.
 if grep -qE 'host_ip: (0\.0\.0\.0|::)' <<<"$profile_config"; then
   echo "GATING FAILURE: a published port is not loopback-only" >&2
