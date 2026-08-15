@@ -97,6 +97,32 @@ services:
       <<: *health
       test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/healthz', timeout=2).status == 200 else 1)"]
 
+  # The vulnerable application: non-secure, opt-in only. It requires BOTH the `vulnerable`
+  # profile (this block) AND ALLOW_VULNERABLE_DEMO=true (checked at startup). Loopback :8001.
+  vulnerable:
+    <<: *app
+    profiles: ["vulnerable"]
+    command: ["uvicorn", "credjack.app.vulnerable:app", "--host", "0.0.0.0", "--port", "8001"]
+    environment:
+      - CREDJACK_DB_URL=sqlite+pysqlite:////tmp/credjack-vulnerable.db
+      - ALLOW_VULNERABLE_DEMO=${ALLOW_VULNERABLE_DEMO:-}
+    ports:
+      - "127.0.0.1:8001:8001"
+    networks:
+      - linklocal
+      - internal_net
+      - edge
+    depends_on:
+      metadata:
+        condition: service_healthy
+      control-plane:
+        condition: service_healthy
+      benign:
+        condition: service_healthy
+    healthcheck:
+      <<: *health
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8001/healthz', timeout=2).status == 200 else 1)"]
+
   # Verification boundary: runs the full ruff + mypy + pytest gate inside the container
   # network, reaching every fixture and the secure application. No published ports.
   verify:

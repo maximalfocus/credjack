@@ -161,3 +161,26 @@ def secure_guard(url: str) -> str:
 
 def secure_fetch(url: str) -> FetchOutcome:
     return fetch(url, guard=secure_guard)
+
+
+def vulnerable_guard(url: str) -> str:
+    """No address validation: resolve and connect to whatever the host resolves to.
+
+    This is the deliberately unsafe construction that lets an SSRF reach the link-local
+    metadata address. It still only reaches in-network fixtures (the networks are internal).
+    """
+    parsed = urlparse(url)
+    host = parsed.hostname
+    if not host:
+        raise RejectError("scheme")
+    try:
+        ips = _resolve(host)
+    except socket.gaierror as exc:
+        raise RejectError("blocked_address") from exc
+    if not ips:
+        raise RejectError("blocked_address")
+    return ips[0]
+
+
+def vulnerable_fetch(url: str) -> FetchOutcome:
+    return fetch(url, guard=vulnerable_guard)
