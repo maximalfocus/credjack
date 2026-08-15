@@ -11,3 +11,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Docker Compose verification boundary
         run: bash scripts/verify.sh
+      - name: One-shot scripted comparison demo
+        run: bash scripts/demo.sh

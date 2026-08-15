@@ -12,6 +12,9 @@ dependencies = [
     "pydantic>=2",
 ]
 
+[project.scripts]
+credjack-demo = "credjack.cli.main:main"
+
 [dependency-groups]
 dev = [
     "pytest>=8",
