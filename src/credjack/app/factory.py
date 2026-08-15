@@ -20,6 +20,7 @@ from credjack.app.auth import CurrentUser, Unauthorized
 from credjack.app.constants import GENERIC_REJECTION_JSON, GENERIC_UNAUTHORIZED_JSON
 from credjack.app.deps import SessionDep
 from credjack.app.fetch import RejectError
+from credjack.app.gating import check_vulnerable_ack
 from credjack.app.schemas import CheckCreate, CheckRead
 from credjack.app.service import Fetcher, perform_check
 from credjack.checks import list_checks
@@ -28,11 +29,14 @@ from credjack.db import make_engine, make_sessionmaker, seed_users
 DEFAULT_DB_URL = "sqlite+pysqlite:////tmp/credjack.db"
 
 
-def create_app(fetcher: Fetcher, *, title: str) -> FastAPI:
+def create_app(fetcher: Fetcher, *, title: str, require_ack: bool = False) -> FastAPI:
     db_url = os.environ.get("CREDJACK_DB_URL", DEFAULT_DB_URL)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        # Non-secure applications refuse to start without the explicit acknowledgement.
+        if require_ack:
+            check_vulnerable_ack(os.environ)
         engine = make_engine(db_url)
         sessionmaker = make_sessionmaker(engine)
         with sessionmaker() as session:
